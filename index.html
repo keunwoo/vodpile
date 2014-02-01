@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+  <head>
+    <title>VODpile - GSL 2014 VOD browsing UI</title>
+    <link rel="stylesheet" href="/style.css"></link>
+    <link rel="stylesheet" href="/jquery-ui-1.10.4.custom.min.css"></link>
+  </head>
+  <body>
+    <div id="main">
+      <div id="about">
+        <h1>VODpile</h1>
+        <p>An alternative UI for browsing <a href="http://www.gomexp.com/">GOM eXP's</a> 2014 Starcraft 2 <a href="http://twitch.tv">Twitch.tv</a> VOD archive. <a href="https://keunwoo.github.com/vodpile/blob/master/README.md">More info...</a></p>
+      </div>
+
+      <div id="nav">
+        <div id="navArrows"></div>
+        <div id="navDropdowns"></div>
+      </div>
+      <div id="watch"></div>
+
+      <!-- uncomment the following line to develop against demo data
+           instead of hitting twitch's servers every time -->
+      <!-- <script src="/vodpile-demodata.js"></script> -->
+      <script src="/vodpile.js"></script>
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>
+      <script src="/jquery-ui-1.10.4.custom.min.js"></script>
+      <script src="https://ttv-api.s3.amazonaws.com/twitch.min.js"></script>
+      <script>
+        Twitch.init({clientId: '51pg5k2js91d17hjl0cni27nytkmwo8'},
+                    vodpile.init);
+      </script>
+    </div>
+  </body>
+</html>
