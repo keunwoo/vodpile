@@ -2,7 +2,7 @@ vodpile
 =======
 
 GSL 2014 Starcraft 2 VOD browsing UI -
-[keunwoo.github.io/vodpile](https://keunwoo.github.io/vodpile/)
+[keunwoo.github.io/vodpile](http://keunwoo.github.io/vodpile/)
 
 
 ## Introduction
