@@ -29,6 +29,7 @@ vodpile.Dict = function() {
     this.keys_ = [];
 };
 
+
 /**
  * @param {string} k
  * @param {T} v
@@ -424,6 +425,10 @@ vodpile.extractArchiveId = function(url) {
     return split[split.length - 1];
 };
 
+/**
+ * @param {vodpile.Dict} videos dict mapping from video IDs to internal video
+ *     objects.
+ */
 vodpile.setupEmbed = function(videos) {
     var arrowsDiv = document.getElementById('navArrows');
     var dropdownsDiv = document.getElementById('navDropdowns');
@@ -454,11 +459,21 @@ vodpile.setupEmbed = function(videos) {
                 matchingVideos.push(v);
             }
         });
+        // Sort videos by ascending time.
+        matchingVideos.sort(function(v, w) {
+            // Hack: Twitch always returns UTC time, and lexicographic sorting
+            // of UTC ISO 8601 strings is the same as the time sorting.
+            var vt = v.rawVideo.recorded_at;
+            var wt = w.rawVideo.recorded_at;
+            return (vt < wt ? -1 :
+                    vt > wt ? 1 :
+                    0);
+        });
         vodpile.WTF.when(matchingVideos.length === 0);
 
         // Reset and prepare textbox.
         $('#dropdownLeaf').remove();
-        var SEARCH_PROMPT = 'Type to search - for example, "Group K"';
+        var SEARCH_PROMPT = 'Type to search - for example, "Group A"';
         var textbox = document.createElement('input');
         textbox.setAttribute('id', 'dropdownLeaf');
         textbox.setAttribute('type', 'text');
