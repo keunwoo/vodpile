@@ -269,13 +269,20 @@ vodpile.GSL_2014_S1_GROUP_MATCHSET = {
     regex: /^(?:2014 GSL Season 1 )?(Code [AS]) Group (\w+) [Mm]atch(\d+) [Ss]et(\d+)(?:, 2014 GSL Season 1)?(?:.mp4)?$/
 };
 
+vodpile.GSL_2014_S1_GROUP_MATCHSET_ALT = {
+    id: 'GSL_2014_S1_GROUP_MATCHSET_ALT',
+    hierarchy: ['League', 'Group', 'Match', 'Set'],
+    regex: /^(Code S) 32[^ ]+ Group (\w+) Match (\d+) Set (\d+), 2014 GSL Season 1\..*$/
+};
+
 /**
  * Ordered from least-specific to most-specific.
  */
 vodpile.TITLE_FORMATS = [
     vodpile.GSL_2014_S1_GROUP,
     vodpile.GSL_2014_S1_GROUP_PART,
-    vodpile.GSL_2014_S1_GROUP_MATCHSET
+    vodpile.GSL_2014_S1_GROUP_MATCHSET,
+    vodpile.GSL_2014_S1_GROUP_MATCHSET_ALT
 ];
 
 /**
