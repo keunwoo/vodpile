@@ -29,7 +29,6 @@ vodpile.Dict = function() {
     this.keys_ = [];
 };
 
-
 /**
  * @param {string} k
  * @param {T} v
@@ -185,7 +184,7 @@ vodpile.eachChildElement = function(node, f) {
  *     success, receives null.
  */
 vodpile.fetchVideosHelper = function(channel, limit, offset, fetchOnlyOneChunk,
-                                     dest, callback) {
+                                     dest, callback, delayOpt) {
     Twitch.api({
         method: 'channels/gsl/videos',
         params: {
@@ -195,8 +194,14 @@ vodpile.fetchVideosHelper = function(channel, limit, offset, fetchOnlyOneChunk,
             broadcasts: true
         }
     }, function(error, result) {
+        var delay = (delayOpt || 2000) * 2;
         if (error) {
             console.log('Error fetching videos: ' + error);
+            window.setTimeout(function() {
+                vodpile.fetchVideosHelper(channel, limit, offset,
+                                          fetchOnlyOneChunk, dest, callback,
+                                          delay);
+            }, delay);
             return;
         }
 
@@ -251,39 +256,102 @@ vodpile.fetchVideos = function(channel, callback) {
 };
 
 
-vodpile.GSL_2014_S1_GROUP = {
-    id: 'GSL_2014_S1_GROUP',
-    hierarchy: ['League', 'Group'],
-    regex: /^2014 GSL Season 1 (Code [AS]) Group (\w+)$/
+vodpile.TITLE_FORMATS = {
+
+    'GSL_2014_S1_GROUP': {
+        season: 1,
+        hierarchy: ['League', 'Group'],
+        regex: /^2014 GSL Season 1 (Code [AS]) Group (\w+)$/
+    },
+
+    'GSL_2014_S1_GROUP_PART': {
+        season: 1,
+        hierarchy: ['League', 'Group', 'Part'],
+        regex: /^2014 GSL Season 1 (Code [AS]) Group (\w+) Part (\d+)$/
+    },
+
+    'GSL_2014_S1_GROUP_MATCHSET': {
+        season: 1,
+        hierarchy: ['League', 'Group', 'Match', 'Set'],
+        regex: new RegExp([
+            '^(?:2014 GSL Season 1 )?(Code [AS]) Group (\\w+) ',
+            '[Mm]atch(\\d+) [Ss]et(\\d+)(?:, 2014 GSL Season 1)?(?:.mp4)?$'
+        ].join(''))
+    },
+
+    'GSL_2014_S1_GROUP_MATCHSET_ALT': {
+        season: 1,
+        hierarchy: ['League', 'Group', 'Match', 'Set'],
+        regex: new RegExp([
+            '^(Code S) 32[^ ]+ Group (\\w+) Match (\\d+) Set (\\d+)',
+            ', 2014 GSL Season 1\\..*$'
+        ].join(''))
+    },
+
+    'GSL_2014_S1_ROUND_GROUP': {
+        season: 1,
+        hierarchy: ['League', 'Round of', 'Group'],
+        regex: new RegExp(
+            '^(?:2014 GSL Season 1 )?(Code [AS]) Ro(\\d+) Group (\\w+)$')
+    },
+
+    'GSL_2014_S1_ROUND_GROUP_MATCHSET': {
+        season: 1,
+        hierarchy: ['League', 'Round of', 'Group', 'Match', 'Set'],
+        regex: new RegExp(
+            '^(Code [AS]) Ro(\\d+) Group (\\w+) Match (\\d+) Set (\\d+)' +
+                '(?:, 2014 GSL Season 1.mp4)?$')
+    },
+    
+    'GSL_2014_S1_CODE_S_ROUND_MATCH': {
+        season: 1,
+        hierarchy: ['League', 'Round of', 'Match'],
+        regex: new RegExp(
+            '^(?:2014 GSL Season 1 )?(Code [AS]) Ro(\\d+) [Mm]atch(\\d+)$')
+    },
+
+    'GSL_2014_S1_CODE_S_ROUND_DAY': {
+        season: 1,
+        hierarchy: ['League', 'Round of', 'Day'],
+        regex: new RegExp(
+            '^(?:2014 GSL Season 1 )?(Code [AS]) Ro(\\d+) Day(\\d+)$')
+    },
+
+    'GSL_2014_S1_CODE_S_ROUND_MATCHSET': {
+        season: 1,
+        hierarchy: ['League', 'Round of', 'Match', 'Set'],
+        regex: new RegExp([
+            '^(Code [AS]) Ro(\\d+) Match (\\d+) Set (\\d+)',
+            ', 2014 GSL Season 1.mp4'
+        ].join(''))
+    },
+
+    'GSL_2014_S1_FINALS': {
+        season: 1,
+        hierarchy: ['League'],
+        regex: new RegExp('^2014 GSL Season 1 (Code [AS]) Grand Finals$')
+    },
+
+    'GSL_2014_S1_FINALS_SET': {
+        season: 1,
+        hierarchy: ['League', 'Set'],
+        regex: new RegExp(
+            '^(Code [AS]) Final Set (\\d+), 2014 GSL Season 1.mp4')
+    }
 };
 
-vodpile.GSL_2014_S1_GROUP_PART = {
-    id: 'GSL_2014_S1_GROUP_PART',
-    hierarchy: ['League', 'Group', 'Part'],
-    regex: /^2014 GSL Season 1 (Code [AS]) Group (\w+) Part (\d+)$/
+
+vodpile.allTitleFormats = function() {
+    var result = [];
+    var id;
+    for (id in vodpile.TITLE_FORMATS) {
+        if (vodpile.TITLE_FORMATS.hasOwnProperty(id)) {
+            result.push(vodpile.TITLE_FORMATS[id]);
+        }
+    }
+    return result;
 };
 
-vodpile.GSL_2014_S1_GROUP_MATCHSET = {
-    id: 'GSL_2014_S1_GROUP_MATCHSET',
-    hierarchy: ['League', 'Group', 'Match', 'Set'],
-    regex: /^(?:2014 GSL Season 1 )?(Code [AS]) Group (\w+) [Mm]atch(\d+) [Ss]et(\d+)(?:, 2014 GSL Season 1)?(?:.mp4)?$/
-};
-
-vodpile.GSL_2014_S1_GROUP_MATCHSET_ALT = {
-    id: 'GSL_2014_S1_GROUP_MATCHSET_ALT',
-    hierarchy: ['League', 'Group', 'Match', 'Set'],
-    regex: /^(Code S) 32[^ ]+ Group (\w+) Match (\d+) Set (\d+), 2014 GSL Season 1\..*$/
-};
-
-/**
- * Ordered from least-specific to most-specific.
- */
-vodpile.TITLE_FORMATS = [
-    vodpile.GSL_2014_S1_GROUP,
-    vodpile.GSL_2014_S1_GROUP_PART,
-    vodpile.GSL_2014_S1_GROUP_MATCHSET,
-    vodpile.GSL_2014_S1_GROUP_MATCHSET_ALT
-];
 
 /**
  * Heuristically parse raw videos' titles and process into video objects.
@@ -295,6 +363,7 @@ vodpile.TITLE_FORMATS = [
  */
 vodpile.parseVideoTitles = function(rawVideos) {
     var videos = new vodpile.Dict();
+    var allFormats = vodpile.allTitleFormats();
     rawVideos.each(function(id, v) {
         var i, j, m, format, recognized, desc;
         if (!v.title) {
@@ -302,8 +371,8 @@ vodpile.parseVideoTitles = function(rawVideos) {
             return;
         }
         recognized = false;
-        for (i = 0; i < vodpile.TITLE_FORMATS.length; ++i) {
-            format = vodpile.TITLE_FORMATS[i];
+        for (i = 0; i < allFormats.length; ++i) {
+            format = allFormats[i];
             m = v.title.match(format.regex);
             if (!m) {
                 continue;
@@ -327,6 +396,7 @@ vodpile.parseVideoTitles = function(rawVideos) {
     });
     return videos;
 };
+
 
 vodpile.prettyPrintVideoTitle = function(v, startIndex) {
     var result = [];
