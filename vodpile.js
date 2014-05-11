@@ -294,7 +294,7 @@ vodpile.TITLE_FORMATS = {
         regex: /^2014 GSL Season 1 (Code [AS]) Group (\w+) Part (\d+)$/
     },
 
-    'GSL_2014_GROUP_MATCHSET_PREFIX': {
+    'GSL_2014_SEASON_LEAGUE_GROUP_MATCH_SET': {
         season: 1,
         hierarchy: ['Season', 'League', 'Group', 'Match', 'Set'],
         regex: new RegExp([
@@ -303,12 +303,12 @@ vodpile.TITLE_FORMATS = {
         ].join(''))
     },
 
-    'GSL_2014_GROUP_MATCHSET_POSTFIX': {
+    'GSL_2014_LEAGUE_GROUP_MATCH_SET_SEASON': {
         season: 1,
         hierarchy: ['League', 'Group', 'Match', 'Set', 'Season'],
         regex: new RegExp([
-            '^(Code [AS]) Group (\\w+) [Mm]atch(\\d+) [Ss]et(\\d+), ',
-            '2014 GSL Season (\\d+)(?:.mp4)?$'
+            '^(Code [AS]) Group (\\w+) [Mm]atch ?(\\d+) [Ss]et ?(\\d+), ',
+            '2014 GSL Season (\\d+)(?:.mp4)*$'
         ].join(''))
     },
 
@@ -323,20 +323,21 @@ vodpile.TITLE_FORMATS = {
 
     'GSL_2014_S1_ROUND_GROUP': {
         season: 1,
-        hierarchy: ['League', 'Round of', 'Group'],
+        hierarchy: ['Season', 'League', 'Round of', 'Group'],
         regex: new RegExp(
-            '^(?:2014 GSL Season 1 )?(Code [AS]) Ro(\\d+) Group (\\w+)$')
+            '^(?:2014 GSL Season (\\d+) )?(Code [AS]) Ro(\\d+) Group (\\w+)$')
     },
 
-    'GSL_2014_S1_ROUND_GROUP_MATCHSET': {
+    'GSL_2014_ROUND_GROUP_MATCHSET': {
         season: 1,
-        hierarchy: ['League', 'Round of', 'Group', 'Match', 'Set'],
-        regex: new RegExp(
-            '^(Code [AS]) Ro(\\d+) Group (\\w+) Match (\\d+) Set (\\d+)' +
-                '(?:, 2014 GSL Season 1.mp4)?$')
+        hierarchy: ['League', 'Round of', 'Group', 'Match', 'Set', 'Season'],
+        regex: new RegExp([
+            '^(Code [AS]) Ro(\\d+) Group (\\w+) Match (\\d+) Set (\\d+),',
+            ' 2014 GSL Season (\\d+)(?:.mp4)?$'
+        ].join(''))
     },
     
-    'GSL_2014_S1_CODE_S_ROUND_MATCH': {
+    'GSL_2014_S1_ROUND_MATCH': {
         season: 1,
         hierarchy: ['League', 'Round of', 'Match'],
         regex: new RegExp(
@@ -352,10 +353,10 @@ vodpile.TITLE_FORMATS = {
 
     'GSL_2014_S1_CODE_S_ROUND_MATCHSET': {
         season: 1,
-        hierarchy: ['League', 'Round of', 'Match', 'Set'],
+        hierarchy: ['League', 'Round of', 'Match', 'Set', 'Season'],
         regex: new RegExp([
             '^(Code [AS]) Ro(\\d+) Match (\\d+) Set (\\d+)',
-            ', 2014 GSL Season 1.mp4'
+            ', 2014 GSL Season (\\d+).mp4'
         ].join(''))
     },
 

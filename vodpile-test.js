@@ -12,17 +12,19 @@ asyncTest("parseVideoTitles", function() {
 
         ok(vids.size() > 0, "Nonempty set of parsed videos");
 
-        ok((vids.size() + unparsed.length) === rawVids.size(),
+        strictEqual((vids.size() + unparsed.length), rawVids.size(),
            "All videos are either parsed or unparsed.");
 
         var unparsedTitles = [];
         vodpile.each(unparsed, function(v) {
             console.log("Unparsed: " + v.title);
         });
-        ok(unparsed.length == 0, "Should have no unparsed video titles.");
+        strictEqual(unparsed.length, 0,
+                    "Should have zero unparsed video titles.");
 
         start();
     });
 });
 
-/* global $, asyncTest, expect, module, ok, start, test, vodpile */
+/* global $, asyncTest, expect, module, ok, strictEqual, start, test,
+   vodpile */
