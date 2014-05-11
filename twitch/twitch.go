@@ -19,6 +19,10 @@ type Video struct {
 		Self    string `json:"self"`
 		Channel string `json:"channel"`
 	} `json:"_links"`
+	Channel struct {
+		Name        string `json:"name"`
+		DisplayName string `json:"display_name"`
+	} `json:"channel"`
 	Embed       string  `json:"embed"`
 	URL         string  `json:"url"`
 	Views       float64 `json:"views"`
@@ -46,7 +50,7 @@ func FetchVideoList(c *http.Client, channelName string) map[string]Video {
 		// drop some request parameters from your initial request, so you can't REST-fully
 		// "navigate" using the next field.  So, we assemble the URLs ourselves instead.
 		var url string
-		if (offset == 0) {
+		if offset == 0 {
 			url = urlBase
 		} else {
 			url = urlBase + fmt.Sprintf("&offset=%d", offset)
