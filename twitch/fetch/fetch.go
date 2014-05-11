@@ -41,10 +41,10 @@ func main() {
 	vids := twitch.FetchVideoList(client, *twitchChannel)
 	vidList := make([]twitch.Video, len(vids))
 	i := 0
-	for _, v := range(vids) {
+	for _, v := range vids {
 		vidList[i] = v
 		i++
 	}
-	log.Printf("Got %d unique videos.", i);
+	log.Printf("Got %d unique videos.", i)
 	enc.Encode(vidList)
 }
