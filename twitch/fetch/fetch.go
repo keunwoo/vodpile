@@ -39,5 +39,11 @@ func main() {
 
 	client := &http.Client{}
 	vids := twitch.FetchVideoList(client, *twitchChannel)
-	enc.Encode(vids)
+	vidList := make([]twitch.Video, len(vids))
+	i := 0
+	for _, v := range(vids) {
+		vidList[i] = v
+		i++
+	}
+	enc.Encode(vidList)
 }
