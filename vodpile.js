@@ -276,12 +276,21 @@ vodpile.TITLE_FORMATS = {
         regex: /^2014 GSL Season 1 (Code [AS]) Group (\w+) Part (\d+)$/
     },
 
-    'GSL_2014_S1_GROUP_MATCHSET': {
+    'GSL_2014_GROUP_MATCHSET_PREFIX': {
         season: 1,
-        hierarchy: ['League', 'Group', 'Match', 'Set'],
+        hierarchy: ['Season', 'League', 'Group', 'Match', 'Set'],
         regex: new RegExp([
-            '^(?:2014 GSL Season 1 )?(Code [AS]) Group (\\w+) ',
-            '[Mm]atch(\\d+) [Ss]et(\\d+)(?:, 2014 GSL Season 1)?(?:.mp4)?$'
+            '^2014 GSL Season (\\d+) ',
+            '(Code [AS]) Group (\\w+) [Mm]atch(\\d+) [Ss]et(\\d+)(?:.mp4)?$'
+        ].join(''))
+    },
+
+    'GSL_2014_GROUP_MATCHSET_POSTFIX': {
+        season: 1,
+        hierarchy: ['League', 'Group', 'Match', 'Set', 'Season'],
+        regex: new RegExp([
+            '^(Code [AS]) Group (\\w+) [Mm]atch(\\d+) [Ss]et(\\d+), ',
+            '2014 GSL Season (\\d+)(?:.mp4)?$'
         ].join(''))
     },
 
@@ -347,15 +356,39 @@ vodpile.TITLE_FORMATS = {
 };
 
 
+vodpile.TITLE_FORMAT_LIST_ = null;
+
 vodpile.allTitleFormats = function() {
-    var result = [];
-    var id;
-    for (id in vodpile.TITLE_FORMATS) {
-        if (vodpile.TITLE_FORMATS.hasOwnProperty(id)) {
-            result.push(vodpile.TITLE_FORMATS[id]);
+    if (vodpile.TITLE_FORMAT_LIST_ === null) {
+        vodpile.TITLE_FORMAT_LIST_ = [];
+        var result = [];
+        var id;
+        for (id in vodpile.TITLE_FORMATS) {
+            if (vodpile.TITLE_FORMATS.hasOwnProperty(id)) {
+                vodpile.TITLE_FORMAT_LIST_.push(vodpile.TITLE_FORMATS[id]);
+            }
         }
     }
-    return result;
+    return vodpile.TITLE_FORMAT_LIST_.slice();
+};
+
+
+vodpile.parseVideoTitle = function(title) {
+    var allFormats = vodpile.allTitleFormats();
+    var i, j, m, format, desc;
+    for (i = 0; i < allFormats.length; ++i) {
+        format = allFormats[i];
+        m = title.match(format.regex);
+        if (!m) {
+            continue;
+        }
+        desc = {};
+        for (j = 0; j < format.hierarchy.length; ++j) {
+            desc[format.hierarchy[j]] = m[j + 1];
+        }
+        return {format: format, desc: desc};
+    }
+    return null;
 };
 
 
@@ -367,38 +400,27 @@ vodpile.allTitleFormats = function() {
  *     which wrap the raw video metadata with some fields describing the result
  *     of parsing.
  */
-vodpile.parseVideoTitles = function(rawVideos) {
+vodpile.parseVideos = function(rawVideos) {
     var videos = new vodpile.Dict();
-    var allFormats = vodpile.allTitleFormats();
     rawVideos.each(function(id, v) {
-        var i, j, m, format, recognized, desc;
+        var parsed;
         if (!v.title) {
             console.log('Skipping video with no title.');
             return;
         }
-        recognized = false;
-        for (i = 0; i < allFormats.length; ++i) {
-            format = allFormats[i];
-            m = v.title.match(format.regex);
-            if (!m) {
-                continue;
-            }
-            recognized = true;
-            desc = {};
-            for (j = 0; j < format.hierarchy.length; ++j) {
-                desc[format.hierarchy[j]] = m[j + 1];
-            }
-            videos.put(id, {
-                rawVideo: v,
-                format: format,
-                descriptor: desc
-            });
-            break;
-        }
-        if (!recognized) {
+
+        parsed = vodpile.parseVideoTitle(v.title);
+        if (parsed === null) {
             console.log('Could not parse video title: "' + v.title + '"; ' +
                         'url was: ' + v.url);
+            return;
         }
+
+        videos.put(id, {
+            rawVideo: v,
+            format: parsed.format,
+            descriptor: parsed.desc
+        });
     });
     return videos;
 };
@@ -434,7 +456,7 @@ vodpile.consoleLogVideos = function(videos) {
  * @param {vodpile.Dict} rawVideos
  */
 vodpile.handleVideos = function(rawVideos) {
-    var videos = vodpile.parseVideoTitles(rawVideos);
+    var videos = vodpile.parseVideos(rawVideos);
     vodpile.setupEmbed(videos);
 };
 
