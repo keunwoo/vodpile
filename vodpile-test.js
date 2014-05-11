@@ -2,7 +2,7 @@ vodpile.test = {};
 
 module("Title Parsing");
 
-asyncTest("parseVideoTitles", function() {
+asyncTest("all cached video data are parsed or blacklisted", function() {
     expect(3);
 
     $.getJSON(vodpile.CACHED_DATA_PATH, function(data) {
@@ -29,7 +29,7 @@ asyncTest("parseVideoTitles", function() {
     });
 });
 
-asyncTest("allTitleFormatsUsedAtLeastOnce", function() {
+asyncTest("all title formats are used at least once", function() {
     expect(1);
 
     $.getJSON(vodpile.CACHED_DATA_PATH, function(data) {
