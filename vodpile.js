@@ -241,6 +241,21 @@ vodpile.fetchVideosHelper = function(channel, limit, offset, fetchOnlyOneChunk,
 
 
 /**
+ * @param {Array} vidList array of raw video objects returned from Twitch API
+ * @return {vodpile.Dict} dict whose values are elements of vidList,
+ *     and whose keys are the respective _id values.
+ */
+vodpile.videoListToDict = function(vidList) {
+    var i;
+    var vidsDict = new vodpile.Dict();
+    for (i = 0; i < vidList.length; ++i) {
+        vidsDict.put(vidList[i]['_id'], vidList[i]); 
+    }
+    return vidsDict;
+};
+
+
+/**
  * Fetches metadata for all videos for the named channel.
  *
  * @param {string} channel
@@ -262,6 +277,9 @@ vodpile.fetchVideos = function(channel, callback) {
 };
 
 
+/**
+ * @enum
+ */
 vodpile.TITLE_FORMATS = {
 
     'GSL_2014_S1_GROUP': {
@@ -373,6 +391,11 @@ vodpile.allTitleFormats = function() {
 };
 
 
+/**
+ * @param {string} title
+ * @return null, or an object {format: fmt, desc: string} where fmt is
+ *     an value in the vodpile.TITLE_FORMATS enum.
+ */
 vodpile.parseVideoTitle = function(title) {
     var allFormats = vodpile.allTitleFormats();
     var i, j, m, format, desc;
@@ -396,23 +419,24 @@ vodpile.parseVideoTitle = function(title) {
  * Heuristically parse raw videos' titles and process into video objects.
  * @param {vodpile.Dict} dict mapping from video IDs to raw video metadata
  *     objects as returned by the Twitch API.
+ * @param {Array} unparsed Array onto which videos with unparseable titles
+ *     will be pushed.
  * @return {vodpile.Dict} mapping from video IDs to our internal video objects,
  *     which wrap the raw video metadata with some fields describing the result
  *     of parsing.
  */
-vodpile.parseVideos = function(rawVideos) {
+vodpile.parseVideos = function(rawVideos, unparsed) {
     var videos = new vodpile.Dict();
     rawVideos.each(function(id, v) {
         var parsed;
         if (!v.title) {
-            console.log('Skipping video with no title.');
+            unparsed.push(v);
             return;
         }
 
         parsed = vodpile.parseVideoTitle(v.title);
         if (parsed === null) {
-            console.log('Could not parse video title: "' + v.title + '"; ' +
-                        'url was: ' + v.url);
+            unparsed.push(v);
             return;
         }
 
@@ -423,6 +447,17 @@ vodpile.parseVideos = function(rawVideos) {
         });
     });
     return videos;
+};
+
+
+/**
+ * @param {Array} unparsed
+ */
+vodpile.logUnparsed = function(unparsed) {
+    var i;
+    for (i = 0; i < unparsed.length; ++i) {
+        console.log('Unparseable title: ' + unparsed[i].title);
+    }
 };
 
 
@@ -454,9 +489,11 @@ vodpile.consoleLogVideos = function(videos) {
 
 /**
  * @param {vodpile.Dict} rawVideos
+ * @param {Array} unparsed output array onto which fetched videos with
+ *     unparseable titles will be pushed.
  */
-vodpile.handleVideos = function(rawVideos) {
-    var videos = vodpile.parseVideos(rawVideos);
+vodpile.handleVideos = function(rawVideos, unparsed) {
+    var videos = vodpile.parseVideos(rawVideos, unparsed);
     vodpile.setupEmbed(videos);
 };
 
@@ -650,18 +687,19 @@ vodpile.init = function(error, status) {
         console.log(error);
         return;  // TODO(keunwoo): show useful error to the user
     }
+    var unparsed = [];  // videos with unparseable titles
     if (vodpile.DEMO_DATA) {
-        vodpile.handleVideos(vodpile.makeDemoDataDict());
+        vodpile.handleVideos(vodpile.makeDemoDataDict(), unparsed);
+        vodpile.logUnparsed(unparsed);
     } else if (vodpile.SKIP_CACHED_DATA) {
-        vodpile.fetchVideos('gsl', vodpile.handleVideos);
+        vodpile.fetchVideos('gsl', function(vids) {
+            vodpile.handleVideos(vids, unparsed);
+            vodpile.logUnparsed(unparsed);
+        });
     } else {
         $.getJSON("data/gsl-pastBroadcasts-2014-05-10.json", function(data) {
-            var i;
-            var vidsDict = new vodpile.Dict();
-            for (i = 0; i < data.length; ++i) {
-                vidsDict.put(data[i]['_id'], data[i]); 
-            }
-            vodpile.handleVideos(vidsDict);
+            vodpile.handleVideos(vodpile.videoListToDict(data), unparsed);
+            vodpile.logUnparsed(unparsed);
         });
     }
 };
