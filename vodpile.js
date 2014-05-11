@@ -6,6 +6,8 @@ var vodpile = vodpile || {};
  */
 vodpile.SKIP_CACHED_DATA = false;
 
+vodpile.CACHED_DATA_PATH = "data/gsl-pastBroadcasts.json";
+
 
 /**
  * Thrown on assertion failures.
@@ -26,13 +28,21 @@ vodpile.WTF.when = function(cond, message) {
 
 
 /**
- * Utility string-to-value dictionary accumulator class.
+ * Utility string-to-value dictionary class.
  * @constructor
  * @template T
  */
 vodpile.Dict = function() {
     this.map_ = {};
     this.keys_ = [];
+};
+
+/** @private */
+vodpile.Dict.prototype.lookup_ = function(k) {
+    if (Object.prototype.hasOwnProperty.call(this.map_, k)) {
+        return this.map_[k];
+    }
+    return undefined;
 };
 
 /**
@@ -42,11 +52,14 @@ vodpile.Dict = function() {
 vodpile.Dict.prototype.put = function(k, v) {
     vodpile.WTF.when(typeof k !== 'string');
     vodpile.WTF.when(v === undefined);
-    var lookup = this.map_[k];
+    var lookup = this.lookup_(k);
     if (lookup === undefined) {
         this.keys_.push(k);
     }
-    this.map_[k] = v;
+    this.map_[k] = {
+        keyIndex: this.keys_.length - 1,
+        value: v
+    };
 };
 
 /**
@@ -55,12 +68,34 @@ vodpile.Dict.prototype.put = function(k, v) {
  * @return {T}
  */
 vodpile.Dict.prototype.get = function(k, ifAbsent) {
-    var lookup = this.map_[k];
+    var lookup = this.lookup_(k);
     if (lookup === undefined) {
         this.put(k, ifAbsent);
         lookup = ifAbsent;
     }
-    return lookup;
+    return lookup.value;
+};
+
+/**
+ * @param {string} k
+ */
+vodpile.Dict.prototype.remove = function(k) {
+    var lookup = this.lookup_(k);
+    if (lookup === undefined) {
+        return;
+    }
+
+    // If k isn't the last item in this.keys_, move the current last key into
+    // the position currently occupied by k.
+    if (lookup.keyIndex !== this.keys_.length - 1) {
+        var swapKey = this.keys_[this.keys_.length - 1];
+        this.map_[swapKey].keyIndex = lookup.keyIndex;
+        this.keys_[lookup.keyIndex] = swapKey;
+    }
+
+    // Remove key and entry.
+    this.keys_.pop();
+    delete this.map_[k];
 };
 
 /**
@@ -77,7 +112,7 @@ vodpile.Dict.prototype.each = function(f) {
     var i, k;
     for (i = 0; i < this.keys_.length; ++i) {
         k = this.keys_[i];
-        f(k, this.map_[k]);
+        f(k, this.lookup_(k).value);
     }
 };
 
@@ -160,7 +195,9 @@ vodpile.eachOwnProperty = function(obj, f) {
     var prop;
     for (prop in obj) {
         if (obj.hasOwnProperty(prop)) {
-            f(prop, obj[prop]);
+            if (f(prop, obj[prop])) {
+                break;
+            }
         }
     }
 };
@@ -278,24 +315,49 @@ vodpile.fetchVideos = function(channel, callback) {
 
 
 /**
+ * Title formats that we intentionally drop on the floor.
+ */
+vodpile.BLACKLISTED_FORMATS = [
+    new RegExp('^xxx$')
+];
+
+/**
+ * @param {string} title
+ * @return {boolean}
+ */
+vodpile.isBlacklistedTitle = function(title) {
+    var i;
+    for (i = 0; i < vodpile.BLACKLISTED_FORMATS.length; ++i) {
+        if (title.match(vodpile.BLACKLISTED_FORMATS[i])) {
+            return true;
+        }
+    }
+    return false;
+};
+
+/**
  * @enum
  */
 vodpile.TITLE_FORMATS = {
 
-    'GSL_2014_S1_GROUP': {
-        season: 1,
-        hierarchy: ['League', 'Group'],
-        regex: /^2014 GSL Season 1 (Code [AS]) Group (\w+)$/
+    //////////////////////////////////////////////////////////////////////
+    // Season-agnostic formats
+
+    'GSL_2014_LEAGUE_ROUND_MATCH_SET_SEASON': {
+        hierarchy: ['League', 'Round of', 'Match', 'Set', 'Season'],
+        regex: new RegExp([
+            '^(Code [AS]) Ro(\\d+) Match (\\d+) Set (\\d+)',
+            ', 2014 GSL Season (\\d+).mp4'
+        ].join(''))
     },
 
-    'GSL_2014_S1_GROUP_PART': {
-        season: 1,
-        hierarchy: ['League', 'Group', 'Part'],
-        regex: /^2014 GSL Season 1 (Code [AS]) Group (\w+) Part (\d+)$/
+    'GSL_2014_SEASON_LEAGUE_GROUP': {
+        hierarchy: ['Season', 'League', 'Group'],
+        regex: new RegExp(
+            '^2014 GSL Season (\\d+) (Code [AS]) Group (\\w+)$')
     },
 
     'GSL_2014_SEASON_LEAGUE_GROUP_MATCH_SET': {
-        season: 1,
         hierarchy: ['Season', 'League', 'Group', 'Match', 'Set'],
         regex: new RegExp([
             '^2014 GSL Season (\\d+) ',
@@ -304,7 +366,6 @@ vodpile.TITLE_FORMATS = {
     },
 
     'GSL_2014_LEAGUE_GROUP_MATCH_SET_SEASON': {
-        season: 1,
         hierarchy: ['League', 'Group', 'Match', 'Set', 'Season'],
         regex: new RegExp([
             '^(Code [AS]) Group (\\w+) [Mm]atch ?(\\d+) [Ss]et ?(\\d+), ',
@@ -312,107 +373,98 @@ vodpile.TITLE_FORMATS = {
         ].join(''))
     },
 
-    'GSL_2014_S1_GROUP_MATCHSET_ALT': {
-        season: 1,
-        hierarchy: ['League', 'Group', 'Match', 'Set'],
-        regex: new RegExp([
-            '^(Code S) 32[^ ]+ Group (\\w+) Match (\\d+) Set (\\d+)',
-            ', 2014 GSL Season 1\\..*$'
-        ].join(''))
-    },
-
-    'GSL_2014_S1_ROUND_GROUP': {
-        season: 1,
-        hierarchy: ['Season', 'League', 'Round of', 'Group'],
-        regex: new RegExp(
-            '^(?:2014 GSL Season (\\d+) )?(Code [AS]) Ro(\\d+) Group (\\w+)$')
-    },
 
     'GSL_2014_ROUND_GROUP_MATCHSET': {
-        season: 1,
         hierarchy: ['League', 'Round of', 'Group', 'Match', 'Set', 'Season'],
         regex: new RegExp([
             '^(Code [AS]) Ro(\\d+) Group (\\w+) Match (\\d+) Set (\\d+),',
             ' 2014 GSL Season (\\d+)(?:.mp4)?$'
         ].join(''))
     },
+
+    'GSL_2014_FINALS_SET': {
+        hierarchy: ['League', 'Set', 'Season'],
+        regex: new RegExp(
+            '^(Code [AS]) Final Set (\\d+), 2014 GSL Season (\\d+).mp4')
+    },
+
+    'GSL_2014_FINALS': {
+        hierarchy: ['Season', 'League'],
+        regex: new RegExp('^2014 GSL Season (\\d+) (Code [AS]) Grand Finals$')
+    },
+
+    //////////////////////////////////////////////////////////////////////
+    // Season 1 formats
+
+    'GSL_2014_S1_GROUP_MATCHSET_ALT': {
+        constants: {
+            'season': 1
+        },
+        hierarchy: ['League', 'Group', 'Match', 'Set'],
+        regex: new RegExp([
+            '^(Code S) 32[^ ]+ Group (\\w+) Match (\\d+) Set (\\d+)',
+            ', 2014 GSL Season 1\\..*$'
+        ].join(''))
+    },
     
+    'GSL_2014_S1_ROUND_GROUP': {
+        constants: {
+            'season': 1
+        },
+        hierarchy: ['Season', 'League', 'Round of', 'Group'],
+        regex: new RegExp(
+            '^(?:2014 GSL Season (\\d+) )?(Code [AS]) Ro(\\d+) Group (\\w+)$')
+    },
+
+    'GSL_2014_S1_GROUP_PART': {
+        constants: {
+            'season': 1
+        },
+        hierarchy: ['League', 'Group', 'Part'],
+        regex: /^2014 GSL Season 1 (Code [AS]) Group (\w+) Part (\d+)$/
+    },
+
     'GSL_2014_S1_ROUND_MATCH': {
-        season: 1,
+        constants: {
+            'season': 1
+        },
         hierarchy: ['League', 'Round of', 'Match'],
         regex: new RegExp(
             '^(?:2014 GSL Season 1 )?(Code [AS]) Ro(\\d+) [Mm]atch(\\d+)$')
     },
 
-    'GSL_2014_S1_CODE_S_ROUND_DAY': {
-        season: 1,
-        hierarchy: ['League', 'Round of', 'Day'],
+    'GSL_2014_SEASON_LEAGUE_ROUND_DAY': {
+        hierarchy: ['Season', 'League', 'Round of', 'Day'],
         regex: new RegExp(
-            '^(?:2014 GSL Season 1 )?(Code [AS]) Ro(\\d+) Day(\\d+)$')
-    },
-
-    'GSL_2014_S1_CODE_S_ROUND_MATCHSET': {
-        season: 1,
-        hierarchy: ['League', 'Round of', 'Match', 'Set', 'Season'],
-        regex: new RegExp([
-            '^(Code [AS]) Ro(\\d+) Match (\\d+) Set (\\d+)',
-            ', 2014 GSL Season (\\d+).mp4'
-        ].join(''))
-    },
-
-    'GSL_2014_S1_FINALS': {
-        season: 1,
-        hierarchy: ['League'],
-        regex: new RegExp('^2014 GSL Season 1 (Code [AS]) Grand Finals$')
-    },
-
-    'GSL_2014_S1_FINALS_SET': {
-        season: 1,
-        hierarchy: ['League', 'Set'],
-        regex: new RegExp(
-            '^(Code [AS]) Final Set (\\d+), 2014 GSL Season 1.mp4')
+            '^2014 GSL Season (\\d+) (Code [AS]) Ro(\\d+) Day(\\d+)$')
     }
-};
-
-
-vodpile.TITLE_FORMAT_LIST_ = null;
-
-vodpile.allTitleFormats = function() {
-    if (vodpile.TITLE_FORMAT_LIST_ === null) {
-        vodpile.TITLE_FORMAT_LIST_ = [];
-        var result = [];
-        var id;
-        for (id in vodpile.TITLE_FORMATS) {
-            if (vodpile.TITLE_FORMATS.hasOwnProperty(id)) {
-                vodpile.TITLE_FORMAT_LIST_.push(vodpile.TITLE_FORMATS[id]);
-            }
-        }
-    }
-    return vodpile.TITLE_FORMAT_LIST_.slice();
 };
 
 
 /**
  * @param {string} title
- * @return null, or an object {format: fmt, desc: string} where fmt is
- *     an value in the vodpile.TITLE_FORMATS enum.
+ * @return null, or an object
+ *       {format: fmt, formatName: string, desc: string}
+ *     where fmt is a value in the vodpile.TITLE_FORMATS enum, formatName is the
+ *     key in vodpile.TITLE_FORMATS corresponding to fmt, and desc is the
+ *     descriptor assembled from the hierarchy.
  */
 vodpile.parseVideoTitle = function(title) {
-    var allFormats = vodpile.allTitleFormats();
-    var i, j, m, format, desc;
-    for (i = 0; i < allFormats.length; ++i) {
-        format = allFormats[i];
-        m = title.match(format.regex);
+    var result = null;
+    vodpile.eachOwnProperty(vodpile.TITLE_FORMATS, function(name, format) {
+        var m = title.match(format.regex);
         if (!m) {
-            continue;
+            return false;  // continue
         }
-        desc = {};
-        for (j = 0; j < format.hierarchy.length; ++j) {
-            desc[format.hierarchy[j]] = m[j + 1];
+        var desc = {};
+        var i;
+        for (i = 0; i < format.hierarchy.length; ++i) {
+            desc[format.hierarchy[i]] = m[i + 1];
         }
-        return {format: format, desc: desc};
-    }
-    return null;
+        result = {format: format, formatName: name, desc: desc};
+        return true;
+    });
+    return result;
 };
 
 
@@ -420,18 +472,36 @@ vodpile.parseVideoTitle = function(title) {
  * Heuristically parse raw videos' titles and process into video objects.
  * @param {vodpile.Dict} dict mapping from video IDs to raw video metadata
  *     objects as returned by the Twitch API.
- * @param {Array} unparsed Array onto which videos with unparseable titles
- *     will be pushed.
- * @return {vodpile.Dict} mapping from video IDs to our internal video objects,
- *     which wrap the raw video metadata with some fields describing the result
- *     of parsing.
+ * @param {Array=} unusedFormatsOpt If this parameter is present, any
+ *     title formats that were never used will be pushed onto this array.
+ * @return {{parsed: vodpile.Dict, unparsed: Array, blacklisted: Array}
+ *     parsed maps from video IDs to our internal video objects, which wrap the
+ *     raw video metadata with some fields describing the result of parsing.
+ *     unparsed is a list of videos that were not successfully parsed.
+ *     blacklisted is a list of videos whose titles were blacklisted.
  */
-vodpile.parseVideos = function(rawVideos, unparsed) {
+vodpile.parseVideos = function(rawVideos, unusedFormatsOpt) {
+    var unusedFormatsSoFar = null;
+    if (unusedFormatsOpt !== undefined) {
+        unusedFormatsSoFar = new vodpile.Dict();
+        vodpile.eachOwnProperty(vodpile.TITLE_FORMATS, function(name, fmt) {
+            unusedFormatsSoFar.put(name, fmt);
+        });
+    }
+
     var videos = new vodpile.Dict();
+    var unparsed = [];
+    var blacklisted = [];
     rawVideos.each(function(id, v) {
         var parsed;
+
         if (!v.title) {
             unparsed.push(v);
+            return;
+        }
+
+        if (vodpile.isBlacklistedTitle(v.title)) {
+            blacklisted.push(v);
             return;
         }
 
@@ -446,8 +516,19 @@ vodpile.parseVideos = function(rawVideos, unparsed) {
             format: parsed.format,
             descriptor: parsed.desc
         });
+
+        if (unusedFormatsSoFar !== null) {
+            unusedFormatsSoFar.remove(parsed.formatName);
+        }
     });
-    return videos;
+
+    if (unusedFormatsOpt !== undefined) {
+        unusedFormatsSoFar.each(function(name, format) {
+            unusedFormatsOpt.push({name: name, format: format});
+        });
+    }
+
+    return {parsed: videos, unparsed: unparsed, blacklisted: blacklisted};
 };
 
 
@@ -494,8 +575,9 @@ vodpile.consoleLogVideos = function(videos) {
  *     unparseable titles will be pushed.
  */
 vodpile.handleVideos = function(rawVideos, unparsed) {
-    var videos = vodpile.parseVideos(rawVideos, unparsed);
-    vodpile.setupEmbed(videos);
+    var parseResult = vodpile.parseVideos(rawVideos);
+    unparsed.push.apply(parseResult.unparsed);
+    vodpile.setupEmbed(parseResult.parsed);
 };
 
 
@@ -698,7 +780,7 @@ vodpile.init = function(error, status) {
             vodpile.logUnparsed(unparsed);
         });
     } else {
-        $.getJSON("data/gsl-pastBroadcasts-2014-05-10.json", function(data) {
+        $.getJSON(vodpile.CACHED_DATA_PATH, function(data) {
             vodpile.handleVideos(vodpile.videoListToDict(data), unparsed);
             vodpile.logUnparsed(unparsed);
         });
