@@ -20,6 +20,7 @@ asyncTest("parseVideoTitles", function() {
             console.log("Unparsed: " + v.title);
         });
         ok(unparsed.length == 0, "Should have no unparsed video titles.");
+
         start();
     });
 });
