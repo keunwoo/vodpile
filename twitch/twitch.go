@@ -36,11 +36,22 @@ func FetchVideoList(c *http.Client, channelName string) map[string]Video {
 	}()
 
 	// Loop over chunks.
-	url := fmt.Sprintf(
-		"https://api.twitch.tv/kraken/channels/%s/videos?limit=%d",
-		channelName,
-		100)
+	offset := 0
+	limit := 100
+	urlBase := fmt.Sprintf(
+		"https://api.twitch.tv/kraken/channels/%s/videos?broadcasts=true&limit=%d",
+		channelName, limit)
 	for {
+		// NOTE(keunwoo): Twitch API responses return "next" URLs for paginated data that
+		// drop some request parameters from your initial request, so you can't REST-fully
+		// "navigate" using the next field.  So, we assemble the URLs ourselves instead.
+		var url string
+		if (offset == 0) {
+			url = urlBase
+		} else {
+			url = urlBase + fmt.Sprintf("&offset=%d", offset)
+		}
+
 		fetchReq, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			log.Fatal(err)
@@ -58,7 +69,7 @@ func FetchVideoList(c *http.Client, channelName string) map[string]Video {
 
 		// Process current message
 		var chunkCount, channelCount int
-		chunkCount, channelCount, url = DecodeVideos(resp.Body, vids)
+		chunkCount, channelCount = DecodeVideos(resp.Body, vids)
 
 		// Stop fetching if we appear to have processed all the videos.
 		// There's an inherent race condition with fetching paginated data while the source
@@ -72,6 +83,7 @@ func FetchVideoList(c *http.Client, channelName string) map[string]Video {
 		if (len(vids) >= channelCount) || (url == "") {
 			break
 		}
+		offset += limit
 	}
 
 	return vids
@@ -79,9 +91,9 @@ func FetchVideoList(c *http.Client, channelName string) map[string]Video {
 
 // DecodeVideos decodes one batch of videos from a twitch.tv JSON response message, which should be
 // readable from r, and stores them in vids keyed by the ID field.  Returns the count of Video
-// objects parsed from this message, the total count of videos expected for the current twitch.tv
-// channel, and the "next chunk" URL given to us by twitch.
-func DecodeVideos(r io.Reader, vids map[string]Video) (int, int, string) {
+// objects parsed from this message and the total count of videos expected for the current twitch.tv
+// channel.
+func DecodeVideos(r io.Reader, vids map[string]Video) (int, int) {
 	dec := json.NewDecoder(r)
 	type VideosMessage struct {
 		Total float64 `json:"_total"`
@@ -93,7 +105,6 @@ func DecodeVideos(r io.Reader, vids map[string]Video) (int, int, string) {
 	}
 	count := 0
 	total := 0
-	nextURL := ""
 	for {
 		var m VideosMessage
 		if err := dec.Decode(&m); err == io.EOF {
@@ -102,11 +113,10 @@ func DecodeVideos(r io.Reader, vids map[string]Video) (int, int, string) {
 			log.Fatal(err)
 		}
 		total = int(m.Total)
-		nextURL = m.Links.Next
 		for _, v := range m.Videos {
 			vids[v.ID] = v
 			count++
 		}
 	}
-	return count, total, nextURL
+	return count, total
 }
