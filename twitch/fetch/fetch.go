@@ -45,5 +45,6 @@ func main() {
 		vidList[i] = v
 		i++
 	}
+	log.Printf("Got %d unique videos.", i);
 	enc.Encode(vidList)
 }
