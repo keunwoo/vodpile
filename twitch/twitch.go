@@ -9,8 +9,8 @@ import (
 )
 
 // Video describes one entry in the response to the /channels/:channel/videos twitch.tv REST API:
-// https://github.com/justintv/Twitch-API/blob/master/v2_resources/videos.md#get-channelschannelvideos
-// We do not attempt to capture every single field, only those needed for our application.
+//   github.com/justintv/Twitch-API/blob/master/v2_resources/videos.md#get-channelschannelvideos
+// We might not capture every single field, only those needed for our application.
 type Video struct {
 	ID         string `json:"_id"`
 	Title      string `json:"title"`
@@ -19,10 +19,13 @@ type Video struct {
 		Self    string `json:"self"`
 		Channel string `json:"channel"`
 	} `json:"_links"`
-	Embed   string  `json:"embed"`
-	URL     string  `json:"url"`
-	Preview string  `json:"preview"`
-	Length  float64 `json:"length"`
+	Embed       string  `json:"embed"`
+	URL         string  `json:"url"`
+	Views       float64 `json:"views"`
+	Preview     string  `json:"preview"`
+	Length      float64 `json:"length"`
+	Game        string  `json:"game"`
+	Description string  `json:"description"`
 }
 
 // FetchVideoList uses c to retrieve metadata about all the videos in a twitch.tv channel.
