@@ -1,5 +1,11 @@
 var vodpile = vodpile || {};
 
+/**
+ * When true, load data directly from Twitch instead of using the cached
+ * data checked into our repository.
+ */
+vodpile.SKIP_CACHED_DATA = false;
+
 
 /**
  * Thrown on assertion failures.
@@ -624,8 +630,17 @@ vodpile.init = function(error, status) {
     }
     if (vodpile.DEMO_DATA) {
         vodpile.handleVideos(vodpile.makeDemoDataDict());
-    } else {
+    } else if (vodpile.SKIP_CACHED_DATA) {
         vodpile.fetchVideos('gsl', vodpile.handleVideos);
+    } else {
+        $.getJSON("data/gsl-pastBroadcasts-2014-05-10.json", function(data) {
+            var i;
+            var vidsDict = new vodpile.Dict();
+            for (i = 0; i < data.length; ++i) {
+                vidsDict.put(data[i]['_id'], data[i]); 
+            }
+            vodpile.handleVideos(vidsDict);
+        });
     }
 };
 
