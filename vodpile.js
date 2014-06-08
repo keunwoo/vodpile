@@ -217,6 +217,14 @@ vodpile.eachChildElement = function(node, f) {
     }
 };
 
+vodpile.shallowCopy = function(obj) {
+    var result = {};
+    vodpile.eachOwnProperty(obj, function(k, v) {
+        result[k] = v;
+    });
+    return result;
+};
+
 
 /**
  * Recursive helper function that implements fetchVideos.
@@ -704,6 +712,16 @@ vodpile.LEVEL_FORMATS = {
 };
 
 
+vodpile.prettyPrintDescriptorField = function(name, value) {
+    var formatFn = vodpile.LEVEL_FORMATS[name];
+    if (formatFn) {
+        return formatFn(value);
+    } else {
+        return name + ' ' + value;
+    }
+};
+
+
 vodpile.prettyPrintVideoTitle = function(v, startIndex) {
     var result = [];
     if (startIndex === undefined) {
@@ -715,12 +733,8 @@ vodpile.prettyPrintVideoTitle = function(v, startIndex) {
         }
         var format;
         if (v.descriptor[level]) {
-            format = vodpile.LEVEL_FORMATS[level];
-            if (format) {
-                result.push(format(v.descriptor[level]));
-            } else {
-                result.push(level + ' ' + v.descriptor[level]);
-            }
+            result.push(vodpile.prettyPrintDescriptorField(
+                level, v.descriptor[level]));
         }
     });
     return result.join(' ');
@@ -773,37 +787,108 @@ vodpile.embedVideo = function(parent, embedHTML) {
 };
 
 /**
- * A HierarchyForest is a forest of trees whose nodes are levels in the
- * hierarchies described by vodpile.TITLE_FORMATS.
+ * Provides query operations over a collection of videos.
  *
  * @constructor
+ * @param videos dict mapping from video IDs to internal video objects.
  */
-vodpile.HierarchyForest = function(videos) {
+vodpile.VideoIndex = function(videos) {
     this.videos_ = videos;
-    this.roots_ = {};
-    var thisObj = this;
-    videos.each(function(id, v) {
-        var rootType = v.descriptor['Hierarchy'][0];
-        var rootNode = thisObj.roots_[rootType];
-        if (rootNode === undefined) {
-            rootNode = {};
-            thisObj.roots_[rootType] = rootNode;
-        }
-        rootNode[v.descriptor[rootType]] = true;
-    });
 };
 
 /**
- * @return {{type: string, value: *}}
+ * Enumerates the live combinations of the requested fields in this index.
+ *
+ * @param {Array.<string>} fields array whose elements name fields whose
+ *     combinations in this index should be enumerated.
+ * @return {Array.<Object>} elements of this array are objects whose fields
+ *     are given by the field parameter; one such object appears for each
+ *     combination of field values appears in this index.  For example,
+ *     if fields === ['Year', 'League'], the result might be the array
+ *       [{'Year': '2014', 'League': 'Code A'},
+ *        {'Year': '2014', 'League': 'Code S'}]
+ *     if those are the only combinations of 'Year' and 'League' which appear
+ *     in the values in this index.  If there are some values with 'Year' but
+ *     not 'League' or vice versa, a record without the missing field will
+ *     appear in the result, for example
+ *        {'Year': 2013'}
  */
-vodpile.HierarchyForest.prototype.roots = function() {
-    var roots = [];
-    vodpile.eachOwnProperty(this.roots_, function(rootType, rootValues) {
-        vodpile.eachOwnProperty(rootValues, function(v, dummy) {
-            roots.push({type: rootType, value: v});
-        });
+vodpile.VideoIndex.prototype.combinations = function(fields) {
+    var result = [];
+
+    this.videos_.each(function(_, v) {
+        var desc = v.descriptor;
+
+        // Assemble current descriptor.
+        var current = {};
+        var i, f;
+        var setSomeField = false;
+        for (i = 0; i < fields.length; ++i) {
+            f = fields[i];
+            if (desc[f] !== undefined) {
+                current[f] = desc[f];
+                setSomeField = true;
+            }
+        }
+
+        // If descriptor is empty, don't do anything.
+        if (!setSomeField) {
+            return;
+        }
+
+        // Add it to the result, if nothing like it is already present.
+        // TODO(keunwoo): O(n*|result|); maybe convert this to hashing
+        var alreadyPresent = false;
+        var j, r, allFieldsMatch;
+        for (i = 0; i < result.length; ++i) {
+            r = result[i];
+            allFieldsMatch = true;
+            for (j = 0; j < fields.length; ++j) {
+                if (r[fields[j]] !== current[fields[j]]) {
+                    allFieldsMatch = false;
+                    break;
+                }
+            }
+            alreadyPresent |= allFieldsMatch;
+            if (alreadyPresent) {
+                break;
+            }
+        }
+        if (!alreadyPresent) {
+            result.push(current);
+        }
     });
-    return roots;
+
+    return result;
+};
+
+/**
+ * @param query object whose fields are level-to-value mappings; for example
+ *     {'Year': '2014', 'Season': 2'} will return a list of all videos with the
+ *     given Year and Season.
+ * @return {Array} video objects matching query
+ */
+vodpile.VideoIndex.prototype.get = function(query) {
+    // TODO(keunwoo): Implement indexing, instead of iterating over the entire
+    // set every time we query.
+    var matchesQuery = function(desc) {
+        var match = true;
+        vodpile.eachOwnProperty(query, function(name, value) {
+            if (value !== desc[name]) {
+                match = false;
+            }
+            return !match;
+        });
+        return match;
+    };
+
+    var result = [];
+    this.videos_.each(function(_, v) {
+        if (matchesQuery(v.descriptor)) {
+            result.push(v);
+        }
+    });
+    return result;
 };
 
 vodpile.DEFAULT_EMBED_FORMAT = [
@@ -843,13 +928,20 @@ vodpile.setupEmbed = function(videos) {
     var watchDiv = document.getElementById('watch');
 
     // Set up root selectbox.
-    var forest = new vodpile.HierarchyForest(videos);
-    var roots = forest.roots();
+    var index = new vodpile.VideoIndex(videos);
+    var rootFields = ['Year', 'Season', 'League'];
+    var combinations = index.combinations(rootFields);
     var rootSelect = document.createElement('select');
     rootSelect.setAttribute('id', 'dropdownRoot');
-    vodpile.each(roots, function(root) {
+    vodpile.each(combinations, function(comb) {
         var opt = document.createElement('option');
-        var label = root.type + ' - ' + root.value;
+        var labelParts = [];
+        vodpile.each(rootFields, function(part) {
+            labelParts.push(vodpile.prettyPrintDescriptorField(
+                part,
+                comb[part] === undefined ? '' : comb[part]));
+        });
+        var label = labelParts.join(' ');
         opt.setAttribute('value', label);
         opt.appendChild(document.createTextNode(label));
         rootSelect.appendChild(opt);
@@ -859,14 +951,9 @@ vodpile.setupEmbed = function(videos) {
     // On change, populate a new dropdown with all matching videos.
     $(rootSelect).change(function(event) {
         // Pick videos which match root selection. 
-        var root = roots[rootSelect.selectedIndex];
-        var matchingVideos = [];
-        videos.each(function(id, v) {
-            if ((v.descriptor['Hierarchy'][0] === root.type) &&
-                (v.descriptor[root.type] === root.value)) {
-                matchingVideos.push(v);
-            }
-        });
+        var comb = combinations[rootSelect.selectedIndex];
+        var query = vodpile.shallowCopy(comb);
+        var matchingVideos = index.get(query);
         // Sort videos by ascending time.
         matchingVideos.sort(function(v, w) {
             // Hack: Twitch always returns UTC time, and lexicographic sorting
@@ -897,7 +984,8 @@ vodpile.setupEmbed = function(videos) {
                 lastSearchTitleToVideo.pop();
                 lastSearchTitleToVideo.push({});
                 vodpile.each(matchingVideos, function(v) {
-                    var prettyTitle = vodpile.prettyPrintVideoTitle(v, 1);
+                    var prettyTitle = vodpile.prettyPrintVideoTitle(
+                        v, rootFields.length);
                     if ((req.term === '') ||
                         (-1 !== prettyTitle.toLowerCase().indexOf(term))) {
                         var uniqueTitle = prettyTitle;
