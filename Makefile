@@ -1,3 +1,4 @@
+GO=go
 JEKYLL=jekyll
 MARKDOWN=markdown
 
@@ -12,8 +13,12 @@ jekyll:
 readme:
 	$(MARKDOWN) README.md >README.html || rm -f README.html
 
+titledump: twitch/dump/dump.go data/gsl-pastBroadcasts.json
+	$(GO) run $< -input=$(word 2, $^) > $@ || rm -f $@
+
 clean:
 	rm -Rf \
 	  _site \
 	  README.html \
+	  titledump \
 	  `find . -name '*~'`
