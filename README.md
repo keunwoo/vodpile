@@ -1,7 +1,7 @@
 vodpile
 =======
 
-GSL 2014 Starcraft 2 VOD browsing UI -
+GSL Starcraft 2 Twitch.tv VOD browsing UI -
 [keunwoo.github.io/vodpile](http://keunwoo.github.io/vodpile/)
 
 
@@ -29,11 +29,11 @@ will maintain a machine-parseable naming scheme.  They've been pretty good about
 this so far, but the parser will have to be updated periodically, and we may
 eventually even have to resort to hand-cataloguing video URLs.
 
-Since only the GSL Season 1, Code A group stages have been played, only those
-videos are currently supported.  I intend to keep the scraper roughly current as
-more matches are played, but this is a very minor side project for me, so I make
-no guarantees about updating it in a timely manner.  If the wait becomes
-intolerable for you, use Twitch's UI, or watch the matches live.
+As of 2014-06-08, the scraper is current through the end of GSL 2014 Season 2,
+Code S Ro16.  I intend to keep the scraper roughly current as more matches are
+played, but this is a very minor side project for me, so I make no guarantees
+about updating it in a timely manner.  If the wait becomes intolerable for you,
+use Twitch's UI, or watch the matches live.
 
 ### Q: Why is [video X] missing?
 
