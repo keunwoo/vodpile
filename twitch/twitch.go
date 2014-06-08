@@ -28,8 +28,8 @@ type Video struct {
 	Views       float64 `json:"views"`
 	Preview     string  `json:"preview"`
 	Length      float64 `json:"length"`
-	Game        string  `json:"game"`
-	Description string  `json:"description"`
+	Game        *string `json:"game"`
+	Description *string `json:"description"`
 }
 
 // FetchVideoList uses c to retrieve metadata about all the videos in a twitch.tv channel.
