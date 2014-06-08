@@ -771,10 +771,7 @@ vodpile.init = function(error, status) {
         return;  // TODO(keunwoo): show useful error to the user
     }
     var unparsed = [];  // videos with unparseable titles
-    if (vodpile.DEMO_DATA) {
-        vodpile.handleVideos(vodpile.makeDemoDataDict(), unparsed);
-        vodpile.logUnparsed(unparsed);
-    } else if (vodpile.SKIP_CACHED_DATA) {
+    if (vodpile.SKIP_CACHED_DATA) {
         vodpile.fetchVideos('gsl', function(vids) {
             vodpile.handleVideos(vids, unparsed);
             vodpile.logUnparsed(unparsed);
