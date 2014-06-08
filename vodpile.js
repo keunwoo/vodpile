@@ -413,6 +413,12 @@ vodpile.TITLE_FORMATS = {
         ].join(''))
     },
 
+    'GSL_2014_SEASON_LEAGUE_ROUND_GROUP': {
+        matchFields: ['Season', 'League', 'Round', 'Group'],
+        regex: new RegExp(
+            '^(?:2014 GSL Season (\\d+) )?(Code [AS]) Ro(\\d+) Group (\\w+)$')
+    },
+
     'GSL_2014_SEASON_LEAGUE_GROUP': {
         constants: {
             // These titles look ambiguous (they look like they could refer to
@@ -489,15 +495,6 @@ vodpile.TITLE_FORMATS = {
             '^(Code S) 32[^ ]+ Group (\\w+) Match (\\d+) Set (\\d+)',
             ', 2014 GSL Season 1\\..*$'
         ].join(''))
-    },
-    
-    'GSL_2014_S1_ROUND_GROUP': {
-        constants: {
-            'Season': '1'
-        },
-        matchFields: ['Season', 'League', 'Round', 'Group'],
-        regex: new RegExp(
-            '^(?:2014 GSL Season (\\d+) )?(Code [AS]) Ro(\\d+) Group (\\w+)$')
     },
 
     'GSL_2014_S1_GROUP_PART': {
@@ -687,6 +684,26 @@ vodpile.logUnparsed = function(unparsed) {
 };
 
 
+/**
+ * For some hierarchy levels, the default "[levelname] [value]" format
+ * looks ugly; we special-case formatting for those levels here.
+ */
+vodpile.LEVEL_FORMATS = {
+    'Year': function(year) { return year; },
+    'League': function(league) { return league; },
+    'Round': function(roundStr) {
+        var round = Number.parseInt(roundStr);
+        if (round === 2) {
+            return 'Finals';
+        } else if (round === 4) {
+            return 'Ro4 semifinals';
+        } else {
+            return 'Ro' + roundStr;
+        }
+    }
+};
+
+
 vodpile.prettyPrintVideoTitle = function(v, startIndex) {
     var result = [];
     if (startIndex === undefined) {
@@ -696,10 +713,14 @@ vodpile.prettyPrintVideoTitle = function(v, startIndex) {
         if (i < startIndex) {
             return;
         }
-        if (i === 0) {
-            result.push(v.descriptor[level]);
-        } else {
-            result.push(level + ' ' + v.descriptor[level]);
+        var format;
+        if (v.descriptor[level]) {
+            format = vodpile.LEVEL_FORMATS[level];
+            if (format) {
+                result.push(format(v.descriptor[level]));
+            } else {
+                result.push(level + ' ' + v.descriptor[level]);
+            }
         }
     });
     return result.join(' ');
