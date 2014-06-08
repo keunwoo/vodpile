@@ -344,7 +344,7 @@ vodpile.TITLE_FORMATS = {
     // Season-agnostic formats
 
     'GSL_2014_LEAGUE_ROUND_MATCH_SET_SEASON': {
-        hierarchy: ['League', 'Round of', 'Match', 'Set', 'Season'],
+        matchFields: ['League', 'Round of', 'Match', 'Set', 'Season'],
         regex: new RegExp([
             '^(Code [AS]) Ro(\\d+) Match (\\d+) Set (\\d+)',
             ', 2014 GSL Season (\\d+).mp4'
@@ -352,13 +352,13 @@ vodpile.TITLE_FORMATS = {
     },
 
     'GSL_2014_SEASON_LEAGUE_GROUP': {
-        hierarchy: ['Season', 'League', 'Group'],
+        matchFields: ['Season', 'League', 'Group'],
         regex: new RegExp(
             '^2014 GSL Season (\\d+) (Code [AS]) Group (\\w+)$')
     },
 
     'GSL_2014_SEASON_LEAGUE_GROUP_MATCH_SET': {
-        hierarchy: ['Season', 'League', 'Group', 'Match', 'Set'],
+        matchFields: ['Season', 'League', 'Group', 'Match', 'Set'],
         regex: new RegExp([
             '^2014 GSL Season (\\d+) ',
             '(Code [AS]) Group (\\w+) [Mm]atch(\\d+) [Ss]et(\\d+)(?:.mp4)?$'
@@ -366,7 +366,7 @@ vodpile.TITLE_FORMATS = {
     },
 
     'GSL_2014_LEAGUE_GROUP_MATCH_SET_SEASON': {
-        hierarchy: ['League', 'Group', 'Match', 'Set', 'Season'],
+        matchFields: ['League', 'Group', 'Match', 'Set', 'Season'],
         regex: new RegExp([
             '^(Code [AS]) Group (\\w+) [Mm]atch ?(\\d+) [Ss]et ?(\\d+), ',
             '2014 GSL Season (\\d+)(?:.mp4)*$'
@@ -375,7 +375,7 @@ vodpile.TITLE_FORMATS = {
 
 
     'GSL_2014_ROUND_GROUP_MATCHSET': {
-        hierarchy: ['League', 'Round of', 'Group', 'Match', 'Set', 'Season'],
+        matchFields: ['League', 'Round of', 'Group', 'Match', 'Set', 'Season'],
         regex: new RegExp([
             '^(Code [AS]) Ro(\\d+) Group (\\w+) Match (\\d+) Set (\\d+),',
             ' 2014 GSL Season (\\d+)(?:.mp4)?$'
@@ -383,13 +383,13 @@ vodpile.TITLE_FORMATS = {
     },
 
     'GSL_2014_FINALS_SET': {
-        hierarchy: ['League', 'Set', 'Season'],
+        matchFields: ['League', 'Set', 'Season'],
         regex: new RegExp(
             '^(Code [AS]) Final Set (\\d+), 2014 GSL Season (\\d+).mp4')
     },
 
     'GSL_2014_FINALS': {
-        hierarchy: ['Season', 'League'],
+        matchFields: ['Season', 'League'],
         regex: new RegExp('^2014 GSL Season (\\d+) (Code [AS]) Grand Finals$')
     },
 
@@ -400,7 +400,7 @@ vodpile.TITLE_FORMATS = {
         constants: {
             'season': 1
         },
-        hierarchy: ['League', 'Group', 'Match', 'Set'],
+        matchFields: ['League', 'Group', 'Match', 'Set'],
         regex: new RegExp([
             '^(Code S) 32[^ ]+ Group (\\w+) Match (\\d+) Set (\\d+)',
             ', 2014 GSL Season 1\\..*$'
@@ -411,7 +411,7 @@ vodpile.TITLE_FORMATS = {
         constants: {
             'season': 1
         },
-        hierarchy: ['Season', 'League', 'Round of', 'Group'],
+        matchFields: ['Season', 'League', 'Round of', 'Group'],
         regex: new RegExp(
             '^(?:2014 GSL Season (\\d+) )?(Code [AS]) Ro(\\d+) Group (\\w+)$')
     },
@@ -420,7 +420,7 @@ vodpile.TITLE_FORMATS = {
         constants: {
             'season': 1
         },
-        hierarchy: ['League', 'Group', 'Part'],
+        matchFields: ['League', 'Group', 'Part'],
         regex: /^2014 GSL Season 1 (Code [AS]) Group (\w+) Part (\d+)$/
     },
 
@@ -428,13 +428,13 @@ vodpile.TITLE_FORMATS = {
         constants: {
             'season': 1
         },
-        hierarchy: ['League', 'Round of', 'Match'],
+        matchFields: ['League', 'Round of', 'Match'],
         regex: new RegExp(
             '^(?:2014 GSL Season 1 )?(Code [AS]) Ro(\\d+) [Mm]atch(\\d+)$')
     },
 
     'GSL_2014_SEASON_LEAGUE_ROUND_DAY': {
-        hierarchy: ['Season', 'League', 'Round of', 'Day'],
+        matchFields: ['Season', 'League', 'Round of', 'Day'],
         regex: new RegExp(
             '^2014 GSL Season (\\d+) (Code [AS]) Ro(\\d+) Day(\\d+)$')
     }
@@ -447,7 +447,7 @@ vodpile.TITLE_FORMATS = {
  *       {format: fmt, formatName: string, desc: string}
  *     where fmt is a value in the vodpile.TITLE_FORMATS enum, formatName is the
  *     key in vodpile.TITLE_FORMATS corresponding to fmt, and desc is the
- *     descriptor assembled from the hierarchy.
+ *     descriptor assembled from the matchFields.
  */
 vodpile.parseVideoTitle = function(title) {
     var result = null;
@@ -458,8 +458,8 @@ vodpile.parseVideoTitle = function(title) {
         }
         var desc = {};
         var i;
-        for (i = 0; i < format.hierarchy.length; ++i) {
-            desc[format.hierarchy[i]] = m[i + 1];
+        for (i = 0; i < format.matchFields.length; ++i) {
+            desc[format.matchFields[i]] = m[i + 1];
         }
         result = {format: format, formatName: name, desc: desc};
         return true;
@@ -548,7 +548,7 @@ vodpile.prettyPrintVideoTitle = function(v, startIndex) {
     if (startIndex === undefined) {
         startIndex = 0;
     }
-    vodpile.enumerate(v.format.hierarchy, function(i, level) {
+    vodpile.enumerate(v.format.matchFields, function(i, level) {
         if (i < startIndex) {
             return;
         }
@@ -603,7 +603,7 @@ vodpile.HierarchyForest = function(videos) {
     this.roots_ = {};
     var thisObj = this;
     videos.each(function(id, v) {
-        var rootType = v.format.hierarchy[0];
+        var rootType = v.format.matchFields[0];
         var rootNode = thisObj.roots_[rootType];
         if (rootNode === undefined) {
             rootNode = {};
@@ -679,7 +679,7 @@ vodpile.setupEmbed = function(videos) {
         var root = roots[rootSelect.selectedIndex];
         var matchingVideos = [];
         videos.each(function(id, v) {
-            if ((v.format.hierarchy[0] === root.type) &&
+            if ((v.format.matchFields[0] === root.type) &&
                 (v.descriptor[root.type] === root.value)) {
                 matchingVideos.push(v);
             }
