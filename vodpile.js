@@ -121,6 +121,14 @@ vodpile.Dict.prototype.each = function(f) {
     }
 };
 
+vodpile.Dict.prototype.values = function() {
+    var result = [];
+    this.each(function(_, v) {
+        result.push(v);
+    });
+    return result;
+};
+
 vodpile.Dict.prototype.partition = function(f) {
     var result = new vodpile.Dict();
     this.each(function(k, v) {
@@ -223,6 +231,21 @@ vodpile.shallowCopy = function(obj) {
         result[k] = v;
     });
     return result;
+};
+
+/**
+ * @return true iff all own properties present in left are present and have the
+ *     same (===) values in the right.  Note that this operation is asymmetric;
+ *     fields present in right that are not present in left have no effect on
+ *     the result.
+ */
+vodpile.leftOwnPropertiesEqRight = function(left, right) {
+    var diff = false;
+    vodpile.eachOwnProperty(left, function(name, value) {
+        diff = right[name] !== value;
+        return diff;
+    });
+    return !diff;
 };
 
 
@@ -786,6 +809,21 @@ vodpile.embedVideo = function(parent, embedHTML) {
     });
 };
 
+
+/**
+ * Compares two of our internal video objects by time.
+ */
+vodpile.compareByTime = function(v, w) {
+    // Hack: Twitch always returns UTC time, and lexicographic sorting
+    // of UTC ISO 8601 strings is the same as the time sorting.
+    var vt = v.rawVideo.recorded_at;
+    var wt = w.rawVideo.recorded_at;
+    return (vt < wt ? -1 :
+            vt > wt ? 1 :
+            0);
+};
+
+
 /**
  * Provides query operations over a collection of videos.
  *
@@ -794,6 +832,7 @@ vodpile.embedVideo = function(parent, embedHTML) {
  */
 vodpile.VideoIndex = function(videos) {
     this.videos_ = videos;
+    this.indexByTime_ = null;  // Populated on-demand.
 };
 
 /**
@@ -872,14 +911,7 @@ vodpile.VideoIndex.prototype.get = function(query) {
     // TODO(keunwoo): Implement indexing, instead of iterating over the entire
     // set every time we query.
     var matchesQuery = function(desc) {
-        var match = true;
-        vodpile.eachOwnProperty(query, function(name, value) {
-            if (value !== desc[name]) {
-                match = false;
-            }
-            return !match;
-        });
-        return match;
+        return vodpile.leftOwnPropertiesEqRight(query, desc);
     };
 
     var result = [];
@@ -889,6 +921,17 @@ vodpile.VideoIndex.prototype.get = function(query) {
         }
     });
     return result;
+};
+
+/**
+ * @return {Array} of videos ordered by ascending recorded_at time.
+ */
+vodpile.VideoIndex.prototype.byTime = function() {
+    if (this.indexByTime_ === null) {
+        this.indexByTime_ = this.videos_.values();
+        this.indexByTime_.sort(vodpile.compareByTime);
+    }
+    return this.indexByTime_.slice();
 };
 
 vodpile.DEFAULT_EMBED_FORMAT = [
@@ -955,15 +998,7 @@ vodpile.setupEmbed = function(videos) {
         var query = vodpile.shallowCopy(comb);
         var matchingVideos = index.get(query);
         // Sort videos by ascending time.
-        matchingVideos.sort(function(v, w) {
-            // Hack: Twitch always returns UTC time, and lexicographic sorting
-            // of UTC ISO 8601 strings is the same as the time sorting.
-            var vt = v.rawVideo.recorded_at;
-            var wt = w.rawVideo.recorded_at;
-            return (vt < wt ? -1 :
-                    vt > wt ? 1 :
-                    0);
-        });
+        matchingVideos.sort(vodpile.compareByTime);
         vodpile.WTF.when(matchingVideos.length === 0);
 
         // Reset and prepare textbox.
@@ -1029,7 +1064,31 @@ vodpile.setupEmbed = function(videos) {
         });
         dropdownsDiv.appendChild(textbox);
     });
-    $(rootSelect).change();  // Trigger a root selection change immediately.
+
+    // Pick the initial value for the root selector: the combination
+    // corresponding to the most recent video.  Note that we rely here on the
+    // fact that our rootFields are selected to include all videos; if this were
+    // not true, we would need to do some more expensive queries here.
+    var byTime = index.byTime();
+    vodpile.WTF.when(byTime.length === 0);
+    var mostRecent = byTime[byTime.length - 1];
+    var initialComb = {};
+    var i;
+    for (i = 0; i < rootFields.length; ++i) {
+        initialComb[rootFields[i]] = mostRecent.descriptor[rootFields[i]];
+    }
+    var initialIndex = 0;
+    for (i = 0; i < combinations.length; ++i) {
+        if (vodpile.leftOwnPropertiesEqRight(initialComb, combinations[i])) {
+            initialIndex = i;
+            break;
+        }
+    }
+    if (initialIndex !== 0) {
+        rootSelect.selectedIndex = initialIndex;
+    }
+    // Trigger a dummy root selection change immediately.
+    $(rootSelect).change();
 };
 
 
