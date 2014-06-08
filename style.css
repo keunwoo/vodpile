@@ -66,12 +66,15 @@ h1 {
     padding: 3px;
     margin: 0 10px 0 0;
     font-size: 16px;
+    border: solid 1px #999;
 }
 
 #navDropdowns input[type=text] {
     padding: 3px;
+    margin: 0;
     width: 400px;
     font-size: 16px;
+    border: solid 1px #999;
 }
 
 input[type=text].prompt {
