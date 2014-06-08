@@ -743,7 +743,7 @@ vodpile.LEVEL_FORMATS = {
     'Year': function(year) { return year; },
     'League': function(league) { return league; },
     'Round': function(roundStr) {
-        var round = Number.parseInt(roundStr);
+        var round = parseInt(roundStr, 10);
         if (round === 2) {
             return 'Finals';
         } else if (round === 4) {
