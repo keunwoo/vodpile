@@ -600,6 +600,22 @@ vodpile.parseVideoTitle = function(title) {
 
 
 /**
+ * Some videos' titles are mislabeled.  This encodes some manual
+ * corrections for the descriptors we build for those video IDs.
+ */
+vodpile.POST_PARSE_CORRECTIONS = {
+    'a495601785': function(desc) {
+        desc['Season'] = '1';
+        desc['Set'] = '2';
+    },
+    'a495601787': function(desc) {
+        desc['Season'] = '1';
+        desc['Set'] = '3';
+    }
+};
+
+
+/**
  * Heuristically parse raw videos' titles and process into video objects.
  * @param {vodpile.Dict} dict mapping from video IDs to raw video metadata
  *     objects as returned by the Twitch API.
@@ -640,6 +656,10 @@ vodpile.parseVideos = function(rawVideos, unusedFormatsOpt) {
         if (parsed === null) {
             unparsed.push(v);
             return;
+        }
+
+        if (vodpile.POST_PARSE_CORRECTIONS[id]) {
+            vodpile.POST_PARSE_CORRECTIONS[id](parsed.desc);
         }
 
         videos.put(id, {
